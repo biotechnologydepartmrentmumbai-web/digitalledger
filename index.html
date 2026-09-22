@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Attendance Ledger - GitHub Pages Ready</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .font-mono-num {
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    /* Sticky columns & headers */
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: #f8fafc;
+    }
+    .sticky-col-sr {
+      position: sticky;
+      left: 0;
+      z-index: 20;
+      background-color: #ffffff;
+      min-width: 54px;
+      max-width: 54px;
+    }
+    .sticky-col-name {
+      position: sticky;
+      left: 54px;
+      z-index: 20;
+      background-color: #ffffff;
+      min-width: 200px;
+      max-width: 240px;
+      box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+    }
+    .sticky-corner-sr {
+      position: sticky;
+      top: 0;
+      left: 0;
+      z-index: 40;
+      background-color: #f1f5f9;
+      min-width: 54px;
+      max-width: 54px;
+    }
+    .sticky-corner-name {
+      position: sticky;
+      top: 0;
+      left: 54px;
+      z-index: 40;
+      background-color: #f1f5f9;
+      min-width: 200px;
+      max-width: 240px;
+      box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+    }
+    .ledger-cell {
+      user-select: none;
+      transition: background-color 0.15s, transform 0.05s;
+    }
+    .ledger-cell:active {
+      transform: scale(0.96);
+    }
+    /* Cell status classes */
+    .cell-p {
+      background-color: #dcfce7 !important;
+      color: #15803d !important;
+      font-weight: 700;
+    }
+    .cell-a {
+      background-color: #fee2e2 !important;
+      color: #b91c1c !important;
+      font-weight: 700;
+    }
+    .cell-h {
+      background-color: #fef3c7 !important;
+      color: #78350f !important;
+      font-weight: 700;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      height: 10px;
+      width: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- TOP APP BAR -->
+  <header class="bg-slate-900 text-white shadow-md border-b border-slate-800 no-print">
+    <div class="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-xl shadow">
+          📋
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Digital Attendance Ledger
+            <span class="text-xs font-medium px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+              Offline / LocalStorage
+            </span>
+          </h1>
+          <p class="text-xs text-slate-400">Classroom attendance & automated analytics reporting</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        <button id="btnManage" class="px-3 py-1.5 text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
+          ⚙️ Manage Profiles
+        </button>
+        <button id="btnExportJSON" class="px-3 py-1.5 text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 transition">
+          💾 Backup JSON
+        </button>
+        <label class="px-3 py-1.5 text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-1.5 cursor-pointer transition">
+          📂 Restore JSON
+          <input type="file" id="importFileInput" accept=".json" class="hidden">
+        </label>
+        <button id="btnDownloadSelf" class="px-3 py-1.5 text-xs font-semibold rounded bg-emerald-700 hover:bg-emerald-600 text-white flex items-center gap-1.5 transition">
+          ⬇️ Save HTML File
+        </button>
+      </div>
+    </div>
+
+    <!-- PROFILE & TERM SELECTION BAR -->
+    <div class="bg-slate-800 border-t border-slate-700 px-4 py-2.5 sm:px-6 lg:px-8">
+      <div class="max-w-7xl mx-auto flex flex-wrap items-center gap-3 text-xs">
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-medium">Faculty:</span>
+          <select id="selectFaculty" class="bg-slate-900 border border-slate-700 text-white rounded px-2.5 py-1 focus:ring-1 focus:ring-emerald-500"></select>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-medium">Department:</span>
+          <select id="selectDepartment" class="bg-slate-900 border border-slate-700 text-white rounded px-2.5 py-1 focus:ring-1 focus:ring-emerald-500"></select>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-medium">Course:</span>
+          <select id="selectCourse" class="bg-slate-900 border border-slate-700 text-white rounded px-2.5 py-1 focus:ring-1 focus:ring-emerald-500 max-w-xs truncate"></select>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400 font-medium">Month/Year:</span>
+          <select id="selectMonth" class="bg-slate-900 border border-slate-700 text-white rounded px-2 py-1"></select>
+          <select id="selectYear" class="bg-slate-900 border border-slate-700 text-white rounded px-2 py-1"></select>
+        </div>
+
+        <div class="ml-auto text-slate-400 text-xs flex items-center gap-1">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span id="saveStatusText">Auto-saved</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN NAVIGATION TABS -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-4 no-print">
+    <div class="flex border-b border-slate-200">
+      <button id="tabBtnGrid" class="py-2.5 px-5 font-semibold text-sm border-b-2 border-emerald-600 text-emerald-700 flex items-center gap-2">
+        <span>📖</span> Page 1: Attendance Grid View
+      </button>
+      <button id="tabBtnAnalysis" class="py-2.5 px-5 font-semibold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2">
+        <span>📊</span> Page 2: Data Analysis & Attendance Report
+      </button>
+    </div>
+  </div>
+
+  <!-- CONTENT CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-4 flex-1">
+    
+    <!-- ================= PAGE 1: ATTENDANCE GRID VIEW ================= -->
+    <section id="viewGrid" class="space-y-4">
+      <!-- CLASSROOM LEDGER BANNER (Paper style) -->
+      <div class="bg-amber-50/60 border border-amber-200/80 rounded-xl p-4 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+          <div class="space-y-0.5">
+            <div class="text-slate-500 font-semibold uppercase tracking-wider text-[11px]">Academic Course Register</div>
+            <div class="text-slate-900 font-bold text-base sm:text-lg flex items-center gap-2" id="bannerCourseTitle">
+              Course: Loading...
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-4 text-slate-700 text-xs sm:text-sm">
+            <div><span class="text-slate-400">Department:</span> <strong id="bannerDept">--</strong></div>
+            <div><span class="text-slate-400">Faculty:</span> <strong id="bannerFaculty">--</strong></div>
+            <div><span class="text-slate-400">Session:</span> <strong id="bannerMonthYear">--</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRID CONTROLS & ACTIONS -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-lg border border-slate-200 shadow-sm no-print">
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btnAddStudent" class="px-3 py-1.5 text-xs font-semibold rounded bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-1 transition">
+            + Add Student
+          </button>
+          <button id="btnBulkAdd" class="px-3 py-1.5 text-xs font-semibold rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition">
+            📋 Bulk Paste Names
+          </button>
+          <button id="btnResetMonth" class="px-3 py-1.5 text-xs font-semibold rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition">
+            Reset Month
+          </button>
+          <span class="text-xs text-slate-400 ml-2">Click cell to cycle: <span class="text-emerald-700 font-bold bg-emerald-100 px-1 rounded">P</span> &rarr; <span class="text-rose-700 font-bold bg-rose-100 px-1 rounded">A</span> &rarr; Clear</span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input type="text" id="filterStudentInput" placeholder="Filter student..." class="text-xs border border-slate-300 rounded px-2.5 py-1.5 w-44 focus:ring-1 focus:ring-emerald-500">
+          <button id="btnExportLedgerCSV" class="px-3 py-1.5 text-xs font-semibold rounded bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-sm transition">
+            📥 Export Grid CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- THE CLASSIC LEDGER TABLE CONTAINER -->
+      <div class="bg-white rounded-xl border border-slate-300 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto max-h-[640px] ledger-scrollbar">
+          <table id="ledgerTable" class="w-full text-xs text-left border-collapse">
+            <thead id="ledgerThead">
+              <!-- Dynamically generated header with sticky Sr No and Name -->
+            </thead>
+            <tbody id="ledgerTbody" class="divide-y divide-slate-200 bg-white">
+              <!-- Dynamically generated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- FOOTER STATS IN GRID -->
+      <div class="flex flex-wrap items-center justify-between text-xs text-slate-500 px-2">
+        <div id="studentCountBadge">Enrolled: 0 / 50 max</div>
+        <div class="flex gap-4">
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-100 border border-emerald-300 inline-block"></span> Present (P)</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-rose-100 border border-rose-300 inline-block"></span> Absent (A)</span>
+          <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-100 border border-slate-300 inline-block"></span> Unmarked (-)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PAGE 2: DATA ANALYSIS & ATTENDANCE REPORT ================= -->
+    <section id="viewAnalysis" class="space-y-6 hidden">
+      <!-- SUMMARY METRIC CARDS -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Classes Conducted</div>
+          <div class="text-2xl font-bold text-slate-900 mt-1 font-mono-num" id="statClassesConducted">0</div>
+          <div class="text-xs text-slate-400 mt-1">Teaching days with records</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Class Average Attendance</div>
+          <div class="text-2xl font-bold text-emerald-600 mt-1 font-mono-num" id="statClassAverage">0%</div>
+          <div class="text-xs text-slate-400 mt-1">Mean percentage across students</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Regular Students (&ge;75%)</div>
+          <div class="text-2xl font-bold text-blue-600 mt-1 font-mono-num" id="statEligibleCount">0</div>
+          <div class="text-xs text-emerald-600 font-medium mt-1">Eligible for examinations</div>
+        </div>
+        <div class="bg-white p-4 rounded-xl border border-rose-200 bg-rose-50/40 shadow-sm">
+          <div class="text-xs font-semibold text-rose-700 uppercase tracking-wider">Attendance Defaulters (&lt;75%)</div>
+          <div class="text-2xl font-bold text-rose-600 mt-1 font-mono-num" id="statDefaultersCount">0</div>
+          <div class="text-xs text-rose-600 font-medium mt-1">Requires immediate notice</div>
+        </div>
+      </div>
+
+      <!-- DAILY ATTENDANCE TREND CHART -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Daily Attendance Trends</h3>
+            <p class="text-xs text-slate-500">Student attendance percentage conducted day by day</p>
+          </div>
+          <span class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200 font-mono-num" id="chartConductedLabel">0 sessions recorded</span>
+        </div>
+        <div class="h-64 relative">
+          <canvas id="dailyTrendsChart"></canvas>
+        </div>
+      </div>
+
+      <!-- STUDENT ATTENDANCE TABLE WITH DEFAULTER HIGHLIGHTS -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">Student Attendance Roster & Defaulter List</h3>
+            <p class="text-xs text-slate-500">Students with attendance below 75% are highlighted in red</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="filterBtnAll" class="px-3 py-1 rounded text-xs font-semibold bg-slate-900 text-white">All Students</button>
+            <button id="filterBtnDefaulters" class="px-3 py-1 rounded text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300">Defaulters (&lt;75%)</button>
+            <button id="btnExportAnalysisCSV" class="px-3 py-1.5 text-xs font-semibold rounded bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 shadow-sm">
+              📥 Export Report CSV
+            </button>
+            <button onclick="window.print()" class="px-3 py-1.5 text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-white">
+              🖨️ Print Report
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="bg-slate-100 text-slate-600 uppercase text-[10px] tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4 w-12">Sr. No.</th>
+                <th class="py-3 px-4">Student Name</th>
+                <th class="py-3 px-4">Roll No</th>
+                <th class="py-3 px-4 text-center">Attended Classes</th>
+                <th class="py-3 px-4 text-center">Missed</th>
+                <th class="py-3 px-4 text-center">Total Conducted</th>
+                <th class="py-3 px-4 text-center">Attendance %</th>
+                <th class="py-3 px-4 text-center">Eligibility Status</th>
+              </tr>
+            </thead>
+            <tbody id="analysisTbody" class="divide-y divide-slate-200">
+              <!-- Injected by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODALS -->
+  <!-- 1. MANAGE PROFILES MODAL -->
+  <div id="modalManage" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="text-base font-bold text-slate-900">Manage Faculties, Departments & Courses</h3>
+        <button id="closeModalManage" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Faculty Management -->
+        <div class="border rounded-lg p-3 bg-slate-50">
+          <h4 class="text-xs font-bold text-slate-700 uppercase mb-2">Faculties</h4>
+          <div id="manageFacultyList" class="space-y-1.5 mb-2 max-h-32 overflow-y-auto"></div>
+          <div class="flex gap-2">
+            <input type="text" id="newFacultyName" placeholder="New Faculty Name..." class="text-xs border rounded px-2 py-1 flex-1">
+            <button id="btnAddFaculty" class="text-xs bg-slate-900 text-white px-3 py-1 rounded">+ Add</button>
+          </div>
+        </div>
+
+        <!-- Department Management -->
+        <div class="border rounded-lg p-3 bg-slate-50">
+          <h4 class="text-xs font-bold text-slate-700 uppercase mb-2">Departments</h4>
+          <div id="manageDeptList" class="space-y-1.5 mb-2 max-h-32 overflow-y-auto"></div>
+          <div class="flex gap-2">
+            <input type="text" id="newDeptName" placeholder="New Department..." class="text-xs border rounded px-2 py-1 flex-1">
+            <button id="btnAddDept" class="text-xs bg-slate-900 text-white px-3 py-1 rounded">+ Add</button>
+          </div>
+        </div>
+
+        <!-- Course Management -->
+        <div class="border rounded-lg p-3 bg-slate-50">
+          <h4 class="text-xs font-bold text-slate-700 uppercase mb-2">Courses</h4>
+          <div id="manageCourseList" class="space-y-1.5 mb-2 max-h-32 overflow-y-auto"></div>
+          <div class="flex gap-2">
+            <input type="text" id="newCourseName" placeholder="New Course..." class="text-xs border rounded px-2 py-1 flex-1">
+            <button id="btnAddCourse" class="text-xs bg-slate-900 text-white px-3 py-1 rounded">+ Add</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-3 border-t">
+        <button id="btnDoneManage" class="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. BULK ADD STUDENTS MODAL -->
+  <div id="modalBulkAdd" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="text-base font-bold text-slate-900">Bulk Paste Student Names</h3>
+        <button id="closeModalBulkAdd" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+      <p class="text-xs text-slate-500">Paste one student name per line. Up to 50 students total.</p>
+      <textarea id="bulkNamesInput" rows="6" placeholder="Aarav Sharma&#10;Ananya Deshmukh&#10;Rohan Kulkarni" class="w-full text-xs border rounded p-2.5 font-mono"></textarea>
+      <div class="flex justify-end gap-2">
+        <button id="btnCancelBulkAdd" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded">Cancel</button>
+        <button id="btnConfirmBulkAdd" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded">Import Students</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. CONFIRM DELETE STUDENT MODAL -->
+  <div id="modalConfirmDelete" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full p-5 space-y-4">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 class="text-sm font-bold text-slate-900">Delete Student Row</h3>
+        <button id="closeModalConfirmDelete" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+      </div>
+      <p id="confirmDeleteStudentText" class="text-xs text-slate-600 leading-relaxed"></p>
+      <div class="flex justify-end gap-2">
+        <button id="btnCancelDelete" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded">Cancel</button>
+        <button id="btnDoDelete" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded">Delete Row</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMBEDDED JAVASCRIPT LOGIC -->
+  <script>
+    (function() {
+      // INITIAL DATA SEED
+      const STORAGE_KEY = 'attendance_app_standalone_v1';
+      
+      const INITIAL_DATA = {
+        faculties: [
+          { id: 'f1', name: 'Dr. Sarah Jenkins' },
+          { id: 'f2', name: 'Prof. Rajesh Sharma' },
+          { id: 'f3', name: 'Dr. Anita Deshmukh' }
+        ],
+        departments: [
+          { id: 'd1', name: 'Biotechnology' },
+          { id: 'd2', name: 'Microbiology' },
+          { id: 'd3', name: 'Bioinformatics' }
+        ],
+        courses: [
+          { id: 'c1', name: 'BT-301: Molecular Biology & Genetics' },
+          { id: 'c2', name: 'BT-402: Recombinant DNA Technology' },
+          { id: 'c3', name: 'MB-204: Cellular Immunology' }
+        ],
+        selectedFacultyId: 'f1',
+        selectedDepartmentId: 'd1',
+        selectedCourseId: 'c1',
+        selectedYear: 2026,
+        selectedMonth: 9,
+        sheets: {}
+      };
+
+      const INITIAL_STUDENTS = [
+        'Aarav Sharma', 'Ananya Deshmukh', 'Rohan Kulkarni', 'Priya Patel',
+        'Siddharth Nair', 'Sneha Joshi', 'Vikram Rao', 'Meera Iyer',
+        'Aditya Verma', 'Riya Sengupta', 'Tanvi Bhatt', 'Kabir Mehta',
+        'Neha Saxena', 'Arjun Pillai', 'Ishita Kapoor', 'Devansh Gupta',
+        'Pooja Hegde', 'Rahul Chavan', 'Simran Kaur', 'Kunal Chopra'
+      ];
+
+      function getDaysInMonth(year, month) {
+        return new Date(year, month, 0).getDate();
+      }
+
+      function getSheetKey(fId, dId, cId, year, month) {
+        return fId + '_' + dId + '_' + cId + '_' + year + '_' + month;
+      }
+
+      function loadDB() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) return JSON.parse(raw);
+        } catch(e) {}
+        // Create initial sheet
+        const sKey = getSheetKey('f1', 'd1', 'c1', 2026, 9);
+        const attendance = {};
+        const students = INITIAL_STUDENTS.map((name, i) => ({ id: 'st_' + (i + 1), name: name }));
+        const activeDays = [1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 15, 16, 17, 18];
+        students.forEach((st, idx) => {
+          attendance[st.id] = {};
+          activeDays.forEach(d => {
+            if (idx === 2 || idx === 8 || idx === 15) {
+              attendance[st.id][d] = (d % 3 === 0) ? 'P' : 'A';
+            } else {
+              attendance[st.id][d] = (d === 14) ? 'A' : 'P';
+            }
+          });
+        });
+        INITIAL_DATA.sheets[sKey] = {
+          facultyId: 'f1', departmentId: 'd1', courseId: 'c1',
+          year: 2026, month: 9, students, attendance
+        };
+        saveDB(INITIAL_DATA);
+        return INITIAL_DATA;
+      }
+
+      function saveDB(data) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          const el = document.getElementById('saveStatusText');
+          if (el) {
+            el.textContent = 'Auto-saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
+        } catch(e) {}
+      }
+
+      let db = loadDB();
+      let activeTab = 'grid'; // 'grid' | 'analysis'
+      let analysisFilter = 'all'; // 'all' | 'defaulters'
+      let chartInstance = null;
+
+      function getCurrentSheet() {
+        const key = getSheetKey(db.selectedFacultyId, db.selectedDepartmentId, db.selectedCourseId, db.selectedYear, db.selectedMonth);
+        if (!db.sheets[key]) {
+          db.sheets[key] = {
+            facultyId: db.selectedFacultyId,
+            departmentId: db.selectedDepartmentId,
+            courseId: db.selectedCourseId,
+            year: db.selectedYear,
+            month: db.selectedMonth,
+            students: INITIAL_STUDENTS.slice(0, 15).map((name, i) => ({ id: 'st_' + (i + 1), name: name })),
+            attendance: {}
+          };
+          saveDB(db);
+        }
+        return db.sheets[key];
+      }
+
+      // RENDER DROPDOWNS
+      function renderDropdowns() {
+        const selFac = document.getElementById('selectFaculty');
+        const selDept = document.getElementById('selectDepartment');
+        const selCrs = document.getElementById('selectCourse');
+        const selMonth = document.getElementById('selectMonth');
+        const selYear = document.getElementById('selectYear');
+
+        selFac.innerHTML = db.faculties.map(f => `<option value="${f.id}" ${f.id === db.selectedFacultyId ? 'selected' : ''}>${f.name}</option>`).join('');
+        selDept.innerHTML = db.departments.map(d => `<option value="${d.id}" ${d.id === db.selectedDepartmentId ? 'selected' : ''}>${d.name}</option>`).join('');
+        selCrs.innerHTML = db.courses.map(c => `<option value="${c.id}" ${c.id === db.selectedCourseId ? 'selected' : ''}>${c.name}</option>`).join('');
+
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        selMonth.innerHTML = months.map((m, idx) => `<option value="${idx + 1}" ${(idx + 1) === db.selectedMonth ? 'selected' : ''}>${m}</option>`).join('');
+        selYear.innerHTML = [2025, 2026, 2027].map(y => `<option value="${y}" ${y === db.selectedYear ? 'selected' : ''}>${y}</option>`).join('');
+
+        // Update banner text
+        const f = db.faculties.find(x => x.id === db.selectedFacultyId);
+        const d = db.departments.find(x => x.id === db.selectedDepartmentId);
+        const c = db.courses.find(x => x.id === db.selectedCourseId);
+        document.getElementById('bannerFaculty').textContent = f ? f.name : '--';
+        document.getElementById('bannerDept').textContent = d ? d.name : '--';
+        document.getElementById('bannerCourseTitle').textContent = c ? c.name : '--';
+        document.getElementById('bannerMonthYear').textContent = months[db.selectedMonth - 1] + ' ' + db.selectedYear;
+      }
+
+      // RENDER LEDGER TABLE
+      function renderGrid() {
+        const sheet = getCurrentSheet();
+        const daysInMonth = getDaysInMonth(sheet.year, sheet.month);
+        const thead = document.getElementById('ledgerThead');
+        const tbody = document.getElementById('ledgerTbody');
+        const filterVal = (document.getElementById('filterStudentInput').value || '').toLowerCase().trim();
+
+        // 1. Header Row
+        let hHtml = '<tr class="text-slate-700 bg-slate-100 font-semibold border-b border-slate-300">';
+        hHtml += '<th class="sticky-corner-sr py-2.5 px-2 text-center border-r border-slate-300 font-mono-num">Sr</th>';
+        hHtml += '<th class="sticky-corner-name py-2.5 px-3 border-r border-slate-300">Student Name</th>';
+
+        const holidays = sheet.holidays || [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dt = new Date(sheet.year, sheet.month - 1, d);
+          const dayName = dt.toLocaleDateString('en-US', { weekday: 'narrow' });
+          const isSun = dt.getDay() === 0;
+          const isHol = holidays.includes(d);
+          hHtml += `<th class="text-center py-1.5 px-1 border-r border-slate-200 min-w-[36px] ${isHol ? 'bg-amber-200 text-amber-950 font-bold' : isSun ? 'bg-amber-100/50 text-amber-900' : ''}">
+            <div class="text-[11px] font-bold font-mono-num">${d}</div>
+            <div class="text-[9px] ${isHol ? 'text-amber-800 font-bold' : 'text-slate-400'} font-normal uppercase">${isHol ? 'HOL' : dayName}</div>
+            <div class="flex justify-center gap-0.5 mt-0.5">
+              <button title="Mark All P for Day ${d}" onclick="window.markDayAll(${d}, 'P')" class="text-[9px] px-1 bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200">P</button>
+              <button title="Mark All A for Day ${d}" onclick="window.markDayAll(${d}, 'A')" class="text-[9px] px-1 bg-rose-100 text-rose-800 rounded hover:bg-rose-200">A</button>
+            </div>
+          </th>`;
+        }
+
+        hHtml += '<th class="py-2 px-2 text-center border-r border-slate-200 min-w-[38px] text-emerald-800 bg-emerald-50 font-mono-num">P</th>';
+        hHtml += '<th class="py-2 px-2 text-center border-r border-slate-200 min-w-[38px] text-rose-800 bg-rose-50 font-mono-num">A</th>';
+        hHtml += '<th class="py-2 px-2 text-center min-w-[48px] bg-slate-50 font-mono-num">%</th>';
+        hHtml += '<th class="py-2 px-2 text-center w-10">Act</th>';
+        hHtml += '</tr>';
+        thead.innerHTML = hHtml;
+
+        // 2. Rows
+        let bHtml = '';
+        const visibleStudents = sheet.students.filter(s => !filterVal || s.name.toLowerCase().includes(filterVal));
+        
+        visibleStudents.forEach((student, index) => {
+          let pCount = 0;
+          let aCount = 0;
+          
+          let rowCells = '';
+          for (let d = 1; d <= daysInMonth; d++) {
+            const isHol = holidays.includes(d);
+            const rawStatus = sheet.attendance[student.id] && sheet.attendance[student.id][d] ? sheet.attendance[student.id][d] : '';
+            const status = isHol ? 'H' : rawStatus;
+            if (!isHol) {
+              if (status === 'P') pCount++;
+              if (status === 'A') aCount++;
+            }
+
+            let cls = 'border-r border-slate-200 text-center font-mono-num cursor-pointer ledger-cell ';
+            if (isHol || status === 'H') cls += 'cell-h';
+            else if (status === 'P') cls += 'cell-p';
+            else if (status === 'A') cls += 'cell-a';
+            else cls += 'hover:bg-slate-100 text-slate-300';
+
+            rowCells += `<td class="${cls}" onclick="window.cycleCell('${student.id}', ${d})">${status || '-'}</td>`;
+          }
+
+          const total = pCount + aCount;
+          const pct = total > 0 ? Math.round((pCount / total) * 100) : 0;
+          const isLow = pct < 75 && total > 0;
+
+          bHtml += `<tr class="hover:bg-slate-50/80 transition-colors">
+            <td class="sticky-col-sr text-center py-2 px-2 font-mono-num text-slate-500 border-r border-slate-200 text-xs">${index + 1}</td>
+            <td class="sticky-col-name py-2 px-3 border-r border-slate-200 font-medium text-slate-800 truncate" title="${student.name}">
+              ${student.name}
+            </td>
+            ${rowCells}
+            <td class="text-center font-bold text-emerald-700 bg-emerald-50/50 border-r border-slate-200 font-mono-num">${pCount}</td>
+            <td class="text-center font-bold text-rose-700 bg-rose-50/50 border-r border-slate-200 font-mono-num">${aCount}</td>
+            <td class="text-center font-bold font-mono-num ${isLow ? 'text-rose-600 bg-rose-50' : 'text-slate-700 bg-slate-50'}">${total > 0 ? pct + '%' : '-'}</td>
+            <td class="text-center py-1 px-1">
+              <button onclick="window.removeStudent('${student.id}')" title="Delete student" class="text-slate-400 hover:text-rose-600 text-xs font-bold">&times;</button>
+            </td>
+          </tr>`;
+        });
+
+        if (visibleStudents.length === 0) {
+          bHtml = `<tr><td colspan="${daysInMonth + 6}" class="text-center py-8 text-slate-400">No students found. Click "+ Add Student" to begin.</td></tr>`;
+        }
+
+        tbody.innerHTML = bHtml;
+        document.getElementById('studentCountBadge').textContent = `Enrolled: ${sheet.students.length} / 50 max`;
+      }
+
+      // CELL TOGGLE
+      window.cycleCell = function(studentId, day) {
+        const sheet = getCurrentSheet();
+        if (!sheet.attendance[studentId]) sheet.attendance[studentId] = {};
+        const cur = sheet.attendance[studentId][day] || '';
+        let next = '';
+        if (cur === '') next = 'P';
+        else if (cur === 'P') next = 'A';
+        else next = '';
+        
+        sheet.attendance[studentId][day] = next;
+        saveDB(db);
+        renderGrid();
+      };
+
+      // COLUMN SHORTCUTS
+      window.markDayAll = function(day, status) {
+        const sheet = getCurrentSheet();
+        sheet.students.forEach(st => {
+          if (!sheet.attendance[st.id]) sheet.attendance[st.id] = {};
+          sheet.attendance[st.id][day] = status;
+        });
+        saveDB(db);
+        renderGrid();
+      };
+
+      // REMOVE STUDENT WITH IN-APP MODAL (NO WINDOW.CONFIRM)
+      let pendingDeleteStudentId = null;
+      const modalConfirmDelete = document.getElementById('modalConfirmDelete');
+      const confirmDeleteStudentText = document.getElementById('confirmDeleteStudentText');
+      const btnCancelDelete = document.getElementById('btnCancelDelete');
+      const closeModalConfirmDelete = document.getElementById('closeModalConfirmDelete');
+      const btnDoDelete = document.getElementById('btnDoDelete');
+
+      window.removeStudent = function(studentId) {
+        const sheet = getCurrentSheet();
+        const st = sheet.students.find(s => s.id === studentId);
+        pendingDeleteStudentId = studentId;
+        confirmDeleteStudentText.textContent = 'Are you sure you want to remove ' + (st ? st.name : 'this student') + '? This will remove the student row and clear all their Present/Absent marks for this month.';
+        modalConfirmDelete.classList.remove('hidden');
+      };
+
+      function closeDeleteModal() {
+        pendingDeleteStudentId = null;
+        modalConfirmDelete.classList.add('hidden');
+      }
+
+      if (btnCancelDelete) btnCancelDelete.addEventListener('click', closeDeleteModal);
+      if (closeModalConfirmDelete) closeModalConfirmDelete.addEventListener('click', closeDeleteModal);
+
+      if (btnDoDelete) {
+        btnDoDelete.addEventListener('click', () => {
+          if (!pendingDeleteStudentId) return;
+          const sheet = getCurrentSheet();
+          sheet.students = sheet.students.filter(s => s.id !== pendingDeleteStudentId);
+          delete sheet.attendance[pendingDeleteStudentId];
+          saveDB(db);
+          closeDeleteModal();
+          renderGrid();
+        });
+      }
+
+      // RENDER DATA ANALYSIS REPORT (PAGE 2)
+      function renderAnalysis() {
+        const sheet = getCurrentSheet();
+        const daysInMonth = getDaysInMonth(sheet.year, sheet.month);
+
+        // Find conducted days
+        const conductedDays = [];
+        const dailyTrends = [];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          let p = 0;
+          let a = 0;
+          sheet.students.forEach(st => {
+            const v = sheet.attendance[st.id]?.[d];
+            if (v === 'P') p++;
+            if (v === 'A') a++;
+          });
+          const total = p + a;
+          if (total > 0) {
+            conductedDays.push(d);
+            dailyTrends.push({ day: d, present: p, absent: a, total, pct: Math.round((p / total) * 100) });
+          }
+        }
+
+        const totalConducted = conductedDays.length;
+        document.getElementById('statClassesConducted').textContent = totalConducted;
+        document.getElementById('chartConductedLabel').textContent = totalConducted + ' sessions conducted';
+
+        let totalClassPcts = 0;
+        let defaulters = 0;
+        const studentStats = sheet.students.map((st, i) => {
+          let p = 0;
+          let a = 0;
+          conductedDays.forEach(d => {
+            const v = sheet.attendance[st.id]?.[d];
+            if (v === 'P') p++;
+            if (v === 'A') a++;
+          });
+          const totalMarked = p + a;
+          const base = totalMarked > 0 ? totalMarked : totalConducted;
+          const pct = base > 0 ? Math.round((p / base) * 100) : 0;
+          const isDef = pct < 75 && base > 0;
+          if (isDef) defaulters++;
+          totalClassPcts += pct;
+          return {
+            sr: i + 1,
+            name: st.name,
+            roll: 'BT-2026-' + (i + 1 < 10 ? '0' + (i + 1) : (i + 1)),
+            attended: p,
+            missed: a,
+            conducted: base,
+            pct,
+            isDefaulter: isDef
+          };
+        });
+
+        const overallAvg = sheet.students.length > 0 ? Math.round(totalClassPcts / sheet.students.length) : 0;
+        document.getElementById('statClassAverage').textContent = overallAvg + '%';
+        document.getElementById('statDefaultersCount').textContent = defaulters;
+        document.getElementById('statEligibleCount').textContent = sheet.students.length - defaulters;
+
+        // Render Table
+        const tbody = document.getElementById('analysisTbody');
+        const filtered = analysisFilter === 'defaulters' ? studentStats.filter(s => s.isDefaulter) : studentStats;
+
+        tbody.innerHTML = filtered.map(s => {
+          const rowCls = s.isDefaulter ? 'bg-rose-50/60 font-semibold' : 'hover:bg-slate-50';
+          const badge = s.isDefaulter
+            ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">DEFICIT (&lt;75%)</span>'
+            : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">ELIGIBLE</span>';
+
+          return `<tr class="${rowCls}">
+            <td class="py-2.5 px-4 font-mono-num text-slate-500">${s.sr}</td>
+            <td class="py-2.5 px-4 text-slate-900 font-medium">${s.name}</td>
+            <td class="py-2.5 px-4 text-slate-500 font-mono-num">${s.roll}</td>
+            <td class="py-2.5 px-4 text-center font-mono-num font-bold text-emerald-700">${s.attended}</td>
+            <td class="py-2.5 px-4 text-center font-mono-num text-rose-600">${s.missed}</td>
+            <td class="py-2.5 px-4 text-center font-mono-num text-slate-600">${s.conducted}</td>
+            <td class="py-2.5 px-4 text-center font-mono-num font-bold ${s.isDefaulter ? 'text-rose-600 text-sm' : 'text-slate-800'}">${s.pct}%</td>
+            <td class="py-2.5 px-4 text-center">${badge}</td>
+          </tr>`;
+        }).join('');
+
+        // Render Chart.js
+        renderTrendsChart(dailyTrends);
+      }
+
+      function renderTrendsChart(trends) {
+        const ctx = document.getElementById('dailyTrendsChart');
+        if (!ctx) return;
+        if (chartInstance) chartInstance.destroy();
+
+        const labels = trends.map(t => 'Day ' + t.day);
+        const dataP = trends.map(t => t.present);
+        const dataA = trends.map(t => t.absent);
+
+        chartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Present', data: dataP, backgroundColor: '#10b981', borderRadius: 4 },
+              { label: 'Absent', data: dataA, backgroundColor: '#f43f5e', borderRadius: 4 }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+              tooltip: {
+                callbacks: {
+                  footer: function(items) {
+                    const idx = items[0].dataIndex;
+                    return 'Attendance: ' + trends[idx].pct + '%';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: { stacked: true, beginAtZero: true, grid: { color: '#f1f5f9' } }
+            }
+          }
+        });
+      }
+
+      // EXPORT CSV HELPERS
+      function downloadFile(filename, text, mime) {
+        const blob = new Blob([text], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      document.getElementById('btnExportLedgerCSV').addEventListener('click', () => {
+        const sheet = getCurrentSheet();
+        const daysInMonth = getDaysInMonth(sheet.year, sheet.month);
+        let csv = 'Sr No,Student Name,' + Array.from({ length: daysInMonth }, (_, i) => 'Day ' + (i + 1)).join(',') + ',Total Present,Total Absent,Percentage\n';
+        sheet.students.forEach((st, idx) => {
+          let p = 0, a = 0;
+          const days = Array.from({ length: daysInMonth }, (_, i) => {
+            const v = sheet.attendance[st.id]?.[i + 1] || '';
+            if (v === 'P') p++;
+            if (v === 'A') a++;
+            return v;
+          }).join(',');
+          const pct = (p + a) > 0 ? Math.round((p / (p + a)) * 100) : 0;
+          csv += `${idx + 1},"${st.name}",${days},${p},${a},${pct}%\n`;
+        });
+        downloadFile('Attendance_Grid_Month_' + sheet.month + '.csv', csv, 'text/csv');
+      });
+
+      document.getElementById('btnExportAnalysisCSV').addEventListener('click', () => {
+        const sheet = getCurrentSheet();
+        const daysInMonth = getDaysInMonth(sheet.year, sheet.month);
+        const conductedDays = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          let cnt = 0;
+          sheet.students.forEach(st => { if (sheet.attendance[st.id]?.[d]) cnt++; });
+          if (cnt > 0) conductedDays.push(d);
+        }
+        let csv = 'Sr No,Student Name,Attended,Missed,Total Conducted,Percentage,Status\n';
+        sheet.students.forEach((st, idx) => {
+          let p = 0, a = 0;
+          conductedDays.forEach(d => {
+            const v = sheet.attendance[st.id]?.[d];
+            if (v === 'P') p++;
+            if (v === 'A') a++;
+          });
+          const base = (p + a) > 0 ? (p + a) : conductedDays.length;
+          const pct = base > 0 ? Math.round((p / base) * 100) : 0;
+          const status = pct < 75 ? 'DEFICIT (<75%)' : 'ELIGIBLE (>=75%)';
+          csv += `${idx + 1},"${st.name}",${p},${a},${base},${pct}%,${status}\n`;
+        });
+        downloadFile('Attendance_Analysis_Report.csv', csv, 'text/csv');
+      });
+
+      // BACKUP & RESTORE JSON
+      document.getElementById('btnExportJSON').addEventListener('click', () => {
+        downloadFile('attendance_system_backup.json', JSON.stringify(db, null, 2), 'application/json');
+      });
+
+      document.getElementById('importFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const imported = JSON.parse(evt.target.result);
+            if (imported.faculties && imported.departments && imported.courses && imported.sheets) {
+              db = imported;
+              saveDB(db);
+              renderDropdowns();
+              renderGrid();
+              alert('Attendance data backup restored successfully!');
+            } else {
+              alert('Invalid backup JSON file structure.');
+            }
+          } catch(err) {
+            alert('Failed to parse JSON file.');
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // DOWNLOAD STANDALONE HTML
+      document.getElementById('btnDownloadSelf').addEventListener('click', () => {
+        const html = document.documentElement.outerHTML;
+        downloadFile('index.html', '<!DOCTYPE html>\n' + html, 'text/html');
+      });
+
+      // TABS
+      const tabBtnGrid = document.getElementById('tabBtnGrid');
+      const tabBtnAnalysis = document.getElementById('tabBtnAnalysis');
+      const viewGrid = document.getElementById('viewGrid');
+      const viewAnalysis = document.getElementById('viewAnalysis');
+
+      tabBtnGrid.addEventListener('click', () => {
+        activeTab = 'grid';
+        tabBtnGrid.className = 'py-2.5 px-5 font-semibold text-sm border-b-2 border-emerald-600 text-emerald-700 flex items-center gap-2';
+        tabBtnAnalysis.className = 'py-2.5 px-5 font-semibold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2';
+        viewGrid.classList.remove('hidden');
+        viewAnalysis.classList.add('hidden');
+        renderGrid();
+      });
+
+      tabBtnAnalysis.addEventListener('click', () => {
+        activeTab = 'analysis';
+        tabBtnAnalysis.className = 'py-2.5 px-5 font-semibold text-sm border-b-2 border-emerald-600 text-emerald-700 flex items-center gap-2';
+        tabBtnGrid.className = 'py-2.5 px-5 font-semibold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-800 flex items-center gap-2';
+        viewAnalysis.classList.remove('hidden');
+        viewGrid.classList.add('hidden');
+        renderAnalysis();
+      });
+
+      // DROPDOWNS CHANGE EVENTS
+      document.getElementById('selectFaculty').addEventListener('change', (e) => {
+        db.selectedFacultyId = e.target.value;
+        saveDB(db);
+        renderDropdowns();
+        if (activeTab === 'grid') renderGrid(); else renderAnalysis();
+      });
+      document.getElementById('selectDepartment').addEventListener('change', (e) => {
+        db.selectedDepartmentId = e.target.value;
+        saveDB(db);
+        renderDropdowns();
+        if (activeTab === 'grid') renderGrid(); else renderAnalysis();
+      });
+      document.getElementById('selectCourse').addEventListener('change', (e) => {
+        db.selectedCourseId = e.target.value;
+        saveDB(db);
+        renderDropdowns();
+        if (activeTab === 'grid') renderGrid(); else renderAnalysis();
+      });
+      document.getElementById('selectMonth').addEventListener('change', (e) => {
+        db.selectedMonth = parseInt(e.target.value, 10);
+        saveDB(db);
+        renderDropdowns();
+        if (activeTab === 'grid') renderGrid(); else renderAnalysis();
+      });
+      document.getElementById('selectYear').addEventListener('change', (e) => {
+        db.selectedYear = parseInt(e.target.value, 10);
+        saveDB(db);
+        renderDropdowns();
+        if (activeTab === 'grid') renderGrid(); else renderAnalysis();
+      });
+
+      // ADD STUDENT
+      document.getElementById('btnAddStudent').addEventListener('click', () => {
+        const sheet = getCurrentSheet();
+        if (sheet.students.length >= 50) {
+          alert('Maximum 50 students per sheet reached.');
+          return;
+        }
+        const name = prompt('Enter Student Full Name:');
+        if (name && name.trim()) {
+          sheet.students.push({ id: 'st_' + Date.now(), name: name.trim() });
+          saveDB(db);
+          renderGrid();
+        }
+      });
+
+      // BULK ADD STUDENTS MODAL
+      const modalBulkAdd = document.getElementById('modalBulkAdd');
+      document.getElementById('btnBulkAdd').addEventListener('click', () => {
+        modalBulkAdd.classList.remove('hidden');
+      });
+      document.getElementById('closeModalBulkAdd').addEventListener('click', () => {
+        modalBulkAdd.classList.add('hidden');
+      });
+      document.getElementById('btnCancelBulkAdd').addEventListener('click', () => {
+        modalBulkAdd.classList.add('hidden');
+      });
+      document.getElementById('btnConfirmBulkAdd').addEventListener('click', () => {
+        const text = document.getElementById('bulkNamesInput').value;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length > 0) {
+          const sheet = getCurrentSheet();
+          const remaining = 50 - sheet.students.length;
+          const toAdd = lines.slice(0, remaining);
+          toAdd.forEach(n => {
+            sheet.students.push({ id: 'st_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4), name: n });
+          });
+          saveDB(db);
+          renderGrid();
+          document.getElementById('bulkNamesInput').value = '';
+          modalBulkAdd.classList.add('hidden');
+        }
+      });
+
+      // RESET MONTH ATTENDANCE
+      document.getElementById('btnResetMonth').addEventListener('click', () => {
+        if (confirm('Are you sure you want to clear all attendance marks for this month? (Students will remain preserved)')) {
+          const sheet = getCurrentSheet();
+          sheet.attendance = {};
+          saveDB(db);
+          renderGrid();
+        }
+      });
+
+      // FILTER STUDENTS IN GRID
+      document.getElementById('filterStudentInput').addEventListener('input', () => {
+        renderGrid();
+      });
+
+      // ANALYSIS FILTER BUTTONS
+      const filterBtnAll = document.getElementById('filterBtnAll');
+      const filterBtnDefaulters = document.getElementById('filterBtnDefaulters');
+      filterBtnAll.addEventListener('click', () => {
+        analysisFilter = 'all';
+        filterBtnAll.className = 'px-3 py-1 rounded text-xs font-semibold bg-slate-900 text-white';
+        filterBtnDefaulters.className = 'px-3 py-1 rounded text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300';
+        renderAnalysis();
+      });
+      filterBtnDefaulters.addEventListener('click', () => {
+        analysisFilter = 'defaulters';
+        filterBtnDefaulters.className = 'px-3 py-1 rounded text-xs font-semibold bg-rose-600 text-white';
+        filterBtnAll.className = 'px-3 py-1 rounded text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300';
+        renderAnalysis();
+      });
+
+      // MANAGE PROFILES MODAL
+      const modalManage = document.getElementById('modalManage');
+      document.getElementById('btnManage').addEventListener('click', () => {
+        renderManageLists();
+        modalManage.classList.remove('hidden');
+      });
+      document.getElementById('closeModalManage').addEventListener('click', () => {
+        modalManage.classList.add('hidden');
+      });
+      document.getElementById('btnDoneManage').addEventListener('click', () => {
+        modalManage.classList.add('hidden');
+        renderDropdowns();
+        renderGrid();
+      });
+
+      function renderManageLists() {
+        const facList = document.getElementById('manageFacultyList');
+        facList.innerHTML = db.faculties.map(f => `<div class="flex items-center justify-between text-xs py-1 border-b">
+          <span>${f.name}</span>
+          ${db.faculties.length > 1 ? `<button onclick="window.delFac('${f.id}')" class="text-rose-600 text-xs font-bold hover:underline">Delete</button>` : ''}
+        </div>`).join('');
+
+        const deptList = document.getElementById('manageDeptList');
+        deptList.innerHTML = db.departments.map(d => `<div class="flex items-center justify-between text-xs py-1 border-b">
+          <span>${d.name}</span>
+          ${db.departments.length > 1 ? `<button onclick="window.delDept('${d.id}')" class="text-rose-600 text-xs font-bold hover:underline">Delete</button>` : ''}
+        </div>`).join('');
+
+        const crsList = document.getElementById('manageCourseList');
+        crsList.innerHTML = db.courses.map(c => `<div class="flex items-center justify-between text-xs py-1 border-b">
+          <span class="truncate pr-2">${c.name}</span>
+          ${db.courses.length > 1 ? `<button onclick="window.delCrs('${c.id}')" class="text-rose-600 text-xs font-bold hover:underline shrink-0">Delete</button>` : ''}
+        </div>`).join('');
+      }
+
+      window.delFac = function(id) {
+        db.faculties = db.faculties.filter(f => f.id !== id);
+        if (db.selectedFacultyId === id) db.selectedFacultyId = db.faculties[0].id;
+        saveDB(db);
+        renderManageLists();
+      };
+      window.delDept = function(id) {
+        db.departments = db.departments.filter(d => d.id !== id);
+        if (db.selectedDepartmentId === id) db.selectedDepartmentId = db.departments[0].id;
+        saveDB(db);
+        renderManageLists();
+      };
+      window.delCrs = function(id) {
+        db.courses = db.courses.filter(c => c.id !== id);
+        if (db.selectedCourseId === id) db.selectedCourseId = db.courses[0].id;
+        saveDB(db);
+        renderManageLists();
+      };
+
+      document.getElementById('btnAddFaculty').addEventListener('click', () => {
+        const inp = document.getElementById('newFacultyName');
+        if (inp.value.trim()) {
+          db.faculties.push({ id: 'f_' + Date.now(), name: inp.value.trim() });
+          inp.value = '';
+          saveDB(db);
+          renderManageLists();
+        }
+      });
+      document.getElementById('btnAddDept').addEventListener('click', () => {
+        const inp = document.getElementById('newDeptName');
+        if (inp.value.trim()) {
+          db.departments.push({ id: 'd_' + Date.now(), name: inp.value.trim() });
+          inp.value = '';
+          saveDB(db);
+          renderManageLists();
+        }
+      });
+      document.getElementById('btnAddCourse').addEventListener('click', () => {
+        const inp = document.getElementById('newCourseName');
+        if (inp.value.trim()) {
+          db.courses.push({ id: 'c_' + Date.now(), name: inp.value.trim() });
+          inp.value = '';
+          saveDB(db);
+          renderManageLists();
+        }
+      });
+
+      // INITIAL RENDER
+      renderDropdowns();
+      renderGrid();
+    })();
+  </script>
+</body>
+</html>
